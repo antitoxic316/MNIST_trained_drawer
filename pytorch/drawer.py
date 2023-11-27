@@ -13,13 +13,15 @@ import matplotlib.pyplot as plt
 # model initialisation
 device = "cpu"
 
-model = CNNmodel(in_shape=1, hidden_shape=32, out_shape=10).to(device)
+model = CNNmodel(in_shape=1, out_shape=10).to(device)
 model.load_state_dict(torch.load(f="CNN.pth"))
 
 
 
 # creating graphic interface with pygame
 pygame.init()
+
+UPDATE_PROBS_RATE = 50
 
 SCREEN_W = 800
 SCREEN_H = 600
@@ -56,8 +58,7 @@ for i, coords in enumerate(NUMBER_COORDS):
 instructions_coords = NUMBER_COORDS[-1]
 instructions = [
     instrustions_font.render("mouse left to draw", True, BLACK),
-    instrustions_font.render("mouse right to erase", True, BLACK),
-    instrustions_font.render("key down to evaluate", True, BLACK)
+    instrustions_font.render("mouse right to erase", True, BLACK)
 ]
 for i in range(0, len(instructions)):
     screen.blit(instructions[i], (instructions_coords[0], instructions_coords[1]+NUMS_PADDING*(i+1)))
@@ -72,12 +73,11 @@ def blit_new_chance(chance: float, num: int):
     screen.blit(font_chance, (coords[0]+NUMS_PADDING, coords[1]))
 
 def get_draw_screen():
-    return [screen.get_at((x, y))[0] for x in range(0, 600) for y in range(0, 600)]
+    return [screen.get_at((x, y))[0] for x in range(0, 585, 21) for y in range(0, 585, 21)]
 
 def transform_img(img):
     img = torch.from_numpy(np.array(img))
-    img = torch.reshape(img, (600, 600)).unsqueeze(dim=0)
-    img = torchvision.transforms.Resize((28, 28))(img)
+    img = torch.reshape(img, (28, 28)).unsqueeze(dim=0)
     img = torch.rot90(img.squeeze(dim=0), 1)
     img = torch.flip(img, (0,)).unsqueeze(dim=0)
     img = img.unsqueeze(dim=0) # add batch dimension
@@ -102,6 +102,7 @@ def predict_and_update_chances(model):
 
 
 drawing= True
+count = 0
 while True:
 
     events = pygame.event.get()
@@ -118,11 +119,10 @@ while True:
                 screen.fill(WHITE, (pos, (draw_thickness, draw_thickness)))
             if pygame.mouse.get_pressed()[2]:
                 screen.fill(BLACK, (pos, (draw_thickness, draw_thickness)))
-        if event.type == pygame.KEYDOWN:
-            drawing = False
 
-    if not drawing:
+    count += 1
+    if count == UPDATE_PROBS_RATE:
         predict_and_update_chances(model)
-        drawing = True
+        count = 0
 
     pygame.display.flip() 
